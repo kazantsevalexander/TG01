@@ -1,17 +1,20 @@
 import asyncio
 from aiogram import Bot, Dispatcher, F
+from googletrans import Translator
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram.types import Message, FSInputFile
 from config import TOKEN, WEATHER_API_KEY
-import requests
 import aiohttp
+import os
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
+# Инициализация клиента переводчика
+translator = Translator()
 
-# Функция для получения прогноза погоды
-import requests
-
+# Создаем папки для хранения изображений, если их нет
+os.makedirs('img', exist_ok=True)
+os.makedirs('tmp', exist_ok=True)
 
 async def get_weather():
     city_id = 625144  # Minsk's city ID
@@ -24,6 +27,19 @@ async def get_weather():
                 return await response.json()
     except aiohttp.ClientError as e:
         return {"error": str(e)}
+
+
+@dp.message(Command('voice'))
+async def voice(message: Message):
+    voice = FSInputFile("voices/voice.ogg")
+    await message.answer_voice(voice)
+
+
+@dp.message(F.photo)
+async def photo(message: Message):
+    await bot.download(message.photo[-1],destination=f'tmp/{message.photo[-1].file_id}.jpg')
+    await message.answer('Я сохранил вашу фотку')
+
 
 # Command to get the weather forecast
 @dp.message(Command('weather'))
@@ -53,6 +69,15 @@ async def help(message: Message):
 @dp.message(CommandStart())
 async def start(message: Message):
     await message.answer("Приветики, я бот!")
+
+
+# Обработчик для перевода текста на английский язык
+@dp.message()
+async def translate_to_english(message: Message):
+    original_text = message.text
+    translated = translator.translate(original_text, src='auto', dest='en')
+
+    await message.answer(translated.text)
 
 
 async def main():
